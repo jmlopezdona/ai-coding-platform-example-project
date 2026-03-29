@@ -50,7 +50,7 @@ deploy:
       - name: app-stack
         chartPath: helm/stack-chart
         setValues:
-          global.registry: '{{.SKAFFOLD_DEFAULT_REPO}}'
+          global.registry: $SKAFFOLD_DEFAULT_REPO
 
 portForward:
   - resourceType: service
@@ -69,6 +69,7 @@ profiles:
   - name: cluster
     build:
       cluster:
+        namespace: $SKAFFOLD_NAMESPACE
         serviceAccount: dev-pod-runner
         tolerations:
           - key: "spot"
@@ -115,13 +116,13 @@ profiles:
       statusCheck: false
       helm:
         releases:
-          - name: 'stack-{{.DC_ID}}'
+          - name: stack-$DC_ID
             chartPath: helm/stack-chart
-            namespace: '{{.SKAFFOLD_NAMESPACE}}'
+            namespace: $SKAFFOLD_NAMESPACE
             setValues:
-              global.branch: '{{.DC_BRANCH}}'
-              global.envId: '{{.DC_ID}}'
-              global.registry: '{{.SKAFFOLD_DEFAULT_REPO}}'
+              global.branch: $DC_BRANCH
+              global.envId: $DC_ID
+              global.registry: $SKAFFOLD_DEFAULT_REPO
               postgres.createStorageClass: "false"
             valuesFiles:
               - helm/stack-chart/projects/example/values.yaml
