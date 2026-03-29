@@ -69,7 +69,6 @@ profiles:
   - name: cluster
     build:
       cluster:
-        namespace: '{{.SKAFFOLD_NAMESPACE}}'
         serviceAccount: dev-pod-runner
         tolerations:
           - key: "spot"
@@ -92,8 +91,6 @@ profiles:
             env:
               - name: AWS_SDK_LOAD_CONFIG
                 value: "true"
-            cache:
-              repo: '{{.SKAFFOLD_DEFAULT_REPO}}/backend-cache'
           sync:
             manual:
               - src: "src/**/*.js"
