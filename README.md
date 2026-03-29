@@ -93,8 +93,8 @@ tolerations:
 ## Local development
 
 ```bash
-# Run locally with Skaffold (requires Docker + kubectl)
-skaffold dev --default-repo=registry.internal
+# Run locally with Skaffold (requires Docker + kubectl + local K8s cluster)
+skaffold dev
 
 # Port forwards: backend → localhost:8080, frontend → localhost:3000
 ```

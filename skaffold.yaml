@@ -49,8 +49,6 @@ deploy:
     releases:
       - name: app-stack
         chartPath: helm/stack-chart
-        setValues:
-          global.registry: $SKAFFOLD_DEFAULT_REPO
 
 portForward:
   - resourceType: service
