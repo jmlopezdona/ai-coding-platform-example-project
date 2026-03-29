@@ -112,6 +112,7 @@ profiles:
               - src: "nginx.conf"
                 dest: /etc/nginx/conf.d/default.conf
 
+    portForward: []
     deploy:
       statusCheck: false
       helm:
@@ -124,5 +125,8 @@ profiles:
               global.envId: $DC_ID
               global.registry: $SKAFFOLD_DEFAULT_REPO
               postgres.createStorageClass: "false"
+            setValueTemplates:
+              backend.image: "{{.IMAGE_FULLY_QUALIFIED_backend}}"
+              frontend.image: "{{.IMAGE_FULLY_QUALIFIED_frontend}}"
             valuesFiles:
               - helm/stack-chart/projects/example/values.yaml
