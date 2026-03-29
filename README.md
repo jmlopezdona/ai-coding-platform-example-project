@@ -28,9 +28,28 @@ skaffold.yaml          Build and sync configuration for Skaffold
 When the platform creates an execution environment for a Delivery Cycle:
 
 1. The platform's env-chart creates a dev pod with a Skaffold sidecar
-2. The Skaffold sidecar reads `skaffold.yaml` from **this repo** (cloned into `/workspace/repo`)
-3. Skaffold builds the images (via Kaniko in-cluster) and deploys the stack using `helm/stack-chart`
-4. When the agent modifies source files, Skaffold detects changes via inotify and syncs them to the running pods
+2. The Skaffold sidecar renders `$VAR` placeholders in `skaffold.yaml` and runs `skaffold dev --profile=cluster`
+3. The `cluster` profile switches from local Docker builds to Kaniko (in-cluster) and uses ECR as the registry
+4. Skaffold builds the images, deploys the stack using `helm/stack-chart`, and starts watching for changes
+5. When the agent modifies source files, Skaffold detects changes via inotify and syncs them to the running pods
+
+### Skaffold profiles
+
+| Profile | Build | Registry | Activated by |
+|---|---|---|---|
+| (default) | Local Docker | `--default-repo` flag | `skaffold dev` on your machine |
+| `cluster` | Kaniko (in-cluster) | `$SKAFFOLD_DEFAULT_REPO` (ECR) | Platform sidecar (`--profile=cluster`) |
+
+### Platform-provided env vars
+
+The `cluster` profile uses these variables (rendered by the platform before Skaffold starts):
+
+| Variable | Description |
+|---|---|
+| `$DC_ID` | Delivery Cycle identifier |
+| `$DC_BRANCH` | Git branch |
+| `$SKAFFOLD_DEFAULT_REPO` | ECR registry prefix |
+| `$SKAFFOLD_NAMESPACE` | Target K8s namespace |
 
 ## Requirements for app pods
 
@@ -75,7 +94,7 @@ tolerations:
 
 ```bash
 # Run locally with Skaffold (requires Docker + kubectl)
-skaffold dev
+skaffold dev --default-repo=registry.internal
 
 # Port forwards: backend → localhost:8080, frontend → localhost:3000
 ```
