@@ -1,11 +1,15 @@
 # =============================================================================
 # Skaffold Configuration — Application stack deployment
 # =============================================================================
-# In-cluster (from skaffold-sync pod):
-#   skaffold dev --filename=/config/skaffold.yaml --namespace=env-{dc-id}
-#
 # Local development:
-#   skaffold dev
+#   skaffold dev --default-repo=registry.internal
+#
+# In-cluster (activated automatically by the platform's skaffold sidecar):
+#   skaffold dev --profile=cluster --filename=/workspace/repo/skaffold.yaml
+#
+# The "cluster" profile switches from local Docker to Kaniko (in-cluster builds)
+# and uses env vars provided by the platform: DC_ID, DC_BRANCH,
+# SKAFFOLD_DEFAULT_REPO, SKAFFOLD_NAMESPACE.
 # =============================================================================
 apiVersion: skaffold/v4beta6
 kind: Config
@@ -19,16 +23,16 @@ build:
   tagPolicy:
     gitCommit: {}
   artifacts:
-    - image: registry.internal/backend
+    - image: backend
       context: apps/backend
       docker:
         dockerfile: Dockerfile
       sync:
         manual:
           - src: "src/**/*.js"
-            dest: /app/src
+            dest: /app
 
-    - image: registry.internal/frontend
+    - image: frontend
       context: apps/frontend
       docker:
         dockerfile: Dockerfile
@@ -36,6 +40,7 @@ build:
         manual:
           - src: "src/**"
             dest: /usr/share/nginx/html
+            strip: "src/"
           - src: "nginx.conf"
             dest: /etc/nginx/conf.d/default.conf
 
@@ -45,7 +50,7 @@ deploy:
       - name: app-stack
         chartPath: helm/stack-chart
         setValues:
-          global.registry: registry.internal
+          global.registry: '{{.SKAFFOLD_DEFAULT_REPO}}'
 
 portForward:
   - resourceType: service
@@ -56,3 +61,70 @@ portForward:
     resourceName: frontend
     port: 3000
     localPort: 3000
+
+# =============================================================================
+# Cluster profile — activated by the platform's skaffold sidecar
+# =============================================================================
+profiles:
+  - name: cluster
+    build:
+      cluster:
+        namespace: '{{.SKAFFOLD_NAMESPACE}}'
+        serviceAccount: dev-pod-runner
+        tolerations:
+          - key: "spot"
+            value: "true"
+            effect: "NoSchedule"
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+      tagPolicy:
+        sha256: {}
+      artifacts:
+        - image: backend
+          context: apps/backend
+          kaniko:
+            dockerfile: Dockerfile
+            env:
+              - name: AWS_SDK_LOAD_CONFIG
+                value: "true"
+            cache:
+              repo: '{{.SKAFFOLD_DEFAULT_REPO}}/backend-cache'
+          sync:
+            manual:
+              - src: "src/**/*.js"
+                dest: /app
+
+        - image: frontend
+          context: apps/frontend
+          kaniko:
+            dockerfile: Dockerfile
+            env:
+              - name: AWS_SDK_LOAD_CONFIG
+                value: "true"
+          sync:
+            manual:
+              - src: "src/**"
+                dest: /usr/share/nginx/html
+                strip: "src/"
+              - src: "nginx.conf"
+                dest: /etc/nginx/conf.d/default.conf
+
+    deploy:
+      statusCheck: false
+      helm:
+        releases:
+          - name: 'stack-{{.DC_ID}}'
+            chartPath: helm/stack-chart
+            namespace: '{{.SKAFFOLD_NAMESPACE}}'
+            setValues:
+              global.branch: '{{.DC_BRANCH}}'
+              global.envId: '{{.DC_ID}}'
+              global.registry: '{{.SKAFFOLD_DEFAULT_REPO}}'
+              postgres.createStorageClass: "false"
+            valuesFiles:
+              - helm/stack-chart/projects/example/values.yaml
