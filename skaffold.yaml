@@ -1,15 +1,14 @@
 # =============================================================================
 # Skaffold Configuration — Application stack deployment
 # =============================================================================
-# Local development:
-#   skaffold dev --default-repo=registry.internal
+# Executed by the platform's Skaffold sidecar inside the dev pod.
+# The sidecar renders $VAR placeholders with sed before running skaffold dev.
 #
-# In-cluster (activated automatically by the platform's skaffold sidecar):
-#   skaffold dev --profile=cluster --filename=/workspace/repo/skaffold.yaml
-#
-# The "cluster" profile switches from local Docker to Kaniko (in-cluster builds)
-# and uses env vars provided by the platform: DC_ID, DC_BRANCH,
-# SKAFFOLD_DEFAULT_REPO, SKAFFOLD_NAMESPACE.
+# Platform-provided env vars:
+#   $DC_ID                  — Delivery Cycle identifier
+#   $DC_BRANCH              — Git branch
+#   $SKAFFOLD_DEFAULT_REPO  — ECR registry prefix
+#   $SKAFFOLD_NAMESPACE     — Target K8s namespace (env-{dc-id})
 # =============================================================================
 apiVersion: skaffold/v4beta6
 kind: Config
@@ -17,16 +16,30 @@ metadata:
   name: agent-dev-env
 
 build:
-  local:
-    useDockerCLI: true
-    push: true
+  cluster:
+    namespace: $SKAFFOLD_NAMESPACE
+    serviceAccount: dev-pod-runner
+    tolerations:
+      - key: "spot"
+        value: "true"
+        effect: "NoSchedule"
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
   tagPolicy:
-    gitCommit: {}
+    sha256: {}
   artifacts:
     - image: backend
       context: apps/backend
-      docker:
+      kaniko:
         dockerfile: Dockerfile
+        env:
+          - name: AWS_SDK_LOAD_CONFIG
+            value: "true"
       sync:
         manual:
           - src: "src/**/*.js"
@@ -34,8 +47,11 @@ build:
 
     - image: frontend
       context: apps/frontend
-      docker:
+      kaniko:
         dockerfile: Dockerfile
+        env:
+          - name: AWS_SDK_LOAD_CONFIG
+            value: "true"
       sync:
         manual:
           - src: "src/**"
@@ -45,88 +61,19 @@ build:
             dest: /etc/nginx/conf.d/default.conf
 
 deploy:
+  statusCheck: false
   helm:
     releases:
-      - name: app-stack
+      - name: stack-$DC_ID
         chartPath: helm/stack-chart
-
-portForward:
-  - resourceType: service
-    resourceName: backend
-    port: 8080
-    localPort: 8080
-  - resourceType: service
-    resourceName: frontend
-    port: 3000
-    localPort: 3000
-
-# =============================================================================
-# Cluster profile — activated by the platform's skaffold sidecar
-# =============================================================================
-profiles:
-  - name: cluster
-    build:
-      cluster:
         namespace: $SKAFFOLD_NAMESPACE
-        serviceAccount: dev-pod-runner
-        tolerations:
-          - key: "spot"
-            value: "true"
-            effect: "NoSchedule"
-        resources:
-          requests:
-            cpu: "500m"
-            memory: "512Mi"
-          limits:
-            cpu: "2"
-            memory: "2Gi"
-      tagPolicy:
-        sha256: {}
-      artifacts:
-        - image: backend
-          context: apps/backend
-          kaniko:
-            dockerfile: Dockerfile
-            env:
-              - name: AWS_SDK_LOAD_CONFIG
-                value: "true"
-          sync:
-            manual:
-              - src: "src/**/*.js"
-                dest: /app
-
-        - image: frontend
-          context: apps/frontend
-          kaniko:
-            dockerfile: Dockerfile
-            env:
-              - name: AWS_SDK_LOAD_CONFIG
-                value: "true"
-          sync:
-            manual:
-              - src: "src/**"
-                dest: /usr/share/nginx/html
-                strip: "src/"
-              - src: "nginx.conf"
-                dest: /etc/nginx/conf.d/default.conf
-
-    patches:
-      - op: remove
-        path: /portForward
-    deploy:
-      statusCheck: false
-      helm:
-        releases:
-          - name: stack-$DC_ID
-            chartPath: helm/stack-chart
-            namespace: $SKAFFOLD_NAMESPACE
-            setValues:
-              global.branch: $DC_BRANCH
-              global.envId: $DC_ID
-              global.registry: $SKAFFOLD_DEFAULT_REPO
-              postgres.createStorageClass: "false"
-            setValueTemplates:
-              backend.image: "{{.IMAGE_FULLY_QUALIFIED_backend}}"
-              frontend.image: "{{.IMAGE_FULLY_QUALIFIED_frontend}}"
-            valuesFiles:
-              - helm/stack-chart/projects/example/values.yaml
+        setValues:
+          global.branch: $DC_BRANCH
+          global.envId: $DC_ID
+          global.registry: $SKAFFOLD_DEFAULT_REPO
+          postgres.createStorageClass: "false"
+        setValueTemplates:
+          backend.image: "{{.IMAGE_FULLY_QUALIFIED_backend}}"
+          frontend.image: "{{.IMAGE_FULLY_QUALIFIED_frontend}}"
+        valuesFiles:
+          - helm/stack-chart/projects/example/values.yaml
