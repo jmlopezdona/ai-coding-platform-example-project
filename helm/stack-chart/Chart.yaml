@@ -1,0 +1,6 @@
+apiVersion: v2
+name: stack-chart
+description: "Application stack for delivery cycle environments (deployed by Skaffold)"
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

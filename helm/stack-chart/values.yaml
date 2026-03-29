@@ -1,0 +1,82 @@
+# -----------------------------------------------------------------------------
+# stack-chart — Application stack for delivery cycle environments
+# -----------------------------------------------------------------------------
+
+global:
+  branch: "main"
+  envId: "default"
+  registry: "registry.internal"
+
+# Scheduling — app stack runs on spot nodes
+scheduling:
+  nodeSelector:
+    role: app
+  tolerations:
+    - key: "spot"
+      value: "true"
+      effect: "NoSchedule"
+
+# ---------------------------------------------------------------------------
+# Frontend — nginx serving static app, proxies /api to backend
+# ---------------------------------------------------------------------------
+frontend:
+  image: "frontend"
+  replicas: 1
+  port: 3000
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+# ---------------------------------------------------------------------------
+# Backend — Node.js/Express REST API with postgres + redis
+# ---------------------------------------------------------------------------
+backend:
+  image: "backend"
+  replicas: 1
+  port: 8080
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ---------------------------------------------------------------------------
+# PostgreSQL
+# ---------------------------------------------------------------------------
+postgres:
+  enabled: true
+  image: "postgres:16-alpine"
+  port: 5432
+  storage: "10Gi"
+  storageClass: ""
+  createStorageClass: true
+  password: "test"
+  database: "testdb"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# ---------------------------------------------------------------------------
+# Redis
+# ---------------------------------------------------------------------------
+redis:
+  enabled: true
+  image: "redis:7-alpine"
+  port: 6379
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"

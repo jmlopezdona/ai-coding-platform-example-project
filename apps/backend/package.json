@@ -1,0 +1,15 @@
+{
+  "name": "example-backend",
+  "version": "1.0.0",
+  "description": "Example backend for K8s exec environment platform testing",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "redis": "^4.7.0"
+  }
+}

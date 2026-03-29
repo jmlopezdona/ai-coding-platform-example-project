@@ -1,0 +1,80 @@
+{{/*
+  Backend Deployment
+  Simple REST API with postgres and redis connectivity.
+*/}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "stack-chart.fullname" . }}-backend
+  labels:
+    {{- include "stack-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "stack-chart.componentLabels" (dict "component" "backend" "root" .) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "stack-chart.labels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+    spec:
+      {{- with .Values.scheduling.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduling.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Run as root to allow Skaffold file sync (kubectl exec + tar needs write permissions)
+      securityContext:
+        runAsUser: 0
+      containers:
+        - name: backend
+          image: {{ include "stack-chart.image" (dict "image" .Values.backend.image "root" .) }}
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.port }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.backend.port | quote }}
+            {{- if .Values.postgres.enabled }}
+            - name: POSTGRES_HOST
+              value: {{ include "stack-chart.fullname" . }}-postgres
+            - name: POSTGRES_PORT
+              value: {{ .Values.postgres.port | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgres.password | quote }}
+            {{- end }}
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_HOST
+              value: {{ include "stack-chart.fullname" . }}-redis
+            - name: REDIS_PORT
+              value: {{ .Values.redis.port | quote }}
+            {{- end }}
+            - name: DC_ID
+              value: {{ .Values.global.envId | quote }}
+            - name: DC_BRANCH
+              value: {{ .Values.global.branch | quote }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}

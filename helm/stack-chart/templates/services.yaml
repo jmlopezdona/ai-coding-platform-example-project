@@ -1,0 +1,49 @@
+{{/*
+  ClusterIP Services for infrastructure components: postgres, redis.
+*/}}
+
+# ---------------------------------------------------------------------------
+# PostgreSQL Service (headless for StatefulSet)
+# ---------------------------------------------------------------------------
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "stack-chart.fullname" . }}-postgres
+  labels:
+    {{- include "stack-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: {{ .Values.postgres.port }}
+      targetPort: tcp-pg
+      protocol: TCP
+      name: tcp-pg
+  selector:
+    {{- include "stack-chart.componentLabels" (dict "component" "postgres" "root" .) | nindent 4 }}
+{{- end }}
+
+---
+# ---------------------------------------------------------------------------
+# Redis Service
+# ---------------------------------------------------------------------------
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "stack-chart.fullname" . }}-redis
+  labels:
+    {{- include "stack-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.redis.port }}
+      targetPort: tcp-redis
+      protocol: TCP
+      name: tcp-redis
+  selector:
+    {{- include "stack-chart.componentLabels" (dict "component" "redis" "root" .) | nindent 4 }}
+{{- end }}

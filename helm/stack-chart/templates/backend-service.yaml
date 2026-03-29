@@ -1,0 +1,19 @@
+{{/*
+  Backend ClusterIP Service
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "stack-chart.fullname" . }}-backend
+  labels:
+    {{- include "stack-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.backend.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "stack-chart.componentLabels" (dict "component" "backend" "root" .) | nindent 4 }}

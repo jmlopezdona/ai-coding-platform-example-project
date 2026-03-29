@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Platform Test App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+    h1 { margin-bottom: 0.5rem; }
+    .meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+    .section { margin-bottom: 2rem; }
+    .section h2 { font-size: 1.1rem; margin-bottom: 0.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+    .status { padding: 0.75rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; white-space: pre-wrap; }
+    .ok { background: #d4edda; }
+    .err { background: #f8d7da; }
+    .loading { background: #fff3cd; }
+    form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    input { flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 0.5rem 1rem; border: none; border-radius: 4px; background: #0d6efd; color: #fff; cursor: pointer; }
+    button:hover { background: #0b5ed7; }
+    button.del { background: #dc3545; padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+    ul { list-style: none; }
+    li { padding: 0.4rem 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+  </style>
+</head>
+<body>
+  <h1>K8s Exec Environment</h1>
+  <p class="meta">Platform test application</p>
+
+  <div class="section">
+    <h2>Backend Status</h2>
+    <div id="status" class="status loading">Checking...</div>
+  </div>
+
+  <div class="section">
+    <h2>Environment Info</h2>
+    <div id="info" class="status loading">Loading...</div>
+  </div>
+
+  <div class="section">
+    <h2>Items (Postgres + Redis)</h2>
+    <form id="add-form">
+      <input type="text" id="item-name" placeholder="New item name" required />
+      <button type="submit">Add</button>
+    </form>
+    <div id="count" style="font-size:0.85rem; color:#666; margin-bottom:0.5rem;"></div>
+    <ul id="items"></ul>
+  </div>
+
+  <script>
+    const API = window.ENV_BACKEND_URL || '/api';
+
+    async function fetchJSON(path, opts) {
+      const res = await fetch(`${API}${path}`, opts);
+      if (!res.ok && res.status !== 204) throw new Error(`${res.status} ${res.statusText}`);
+      if (res.status === 204) return null;
+      return res.json();
+    }
+
+    async function checkStatus() {
+      const el = document.getElementById('status');
+      try {
+        const data = await fetchJSON('/readyz');
+        el.textContent = JSON.stringify(data, null, 2);
+        el.className = 'status ok';
+      } catch (e) {
+        el.textContent = `Error: ${e.message}`;
+        el.className = 'status err';
+      }
+    }
+
+    async function loadInfo() {
+      const el = document.getElementById('info');
+      try {
+        const data = await fetchJSON('/info');
+        el.textContent = JSON.stringify(data, null, 2);
+        el.className = 'status ok';
+      } catch (e) {
+        el.textContent = `Error: ${e.message}`;
+        el.className = 'status err';
+      }
+    }
+
+    async function loadItems() {
+      try {
+        const [items, countData] = await Promise.all([
+          fetchJSON('/items'),
+          fetchJSON('/items/count'),
+        ]);
+        document.getElementById('count').textContent = `Total: ${countData.count} (cached: ${countData.cached})`;
+        const ul = document.getElementById('items');
+        ul.innerHTML = items.map(i =>
+          `<li><span>${i.name}</span><button class="del" onclick="deleteItem(${i.id})">Delete</button></li>`
+        ).join('');
+      } catch (e) {
+        document.getElementById('items').innerHTML = `<li>Error: ${e.message}</li>`;
+      }
+    }
+
+    async function deleteItem(id) {
+      await fetchJSON(`/items/${id}`, { method: 'DELETE' });
+      loadItems();
+    }
+
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('item-name');
+      await fetchJSON('/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: input.value }),
+      });
+      input.value = '';
+      loadItems();
+    });
+
+    checkStatus();
+    loadInfo();
+    loadItems();
+  </script>
+</body>
+</html>

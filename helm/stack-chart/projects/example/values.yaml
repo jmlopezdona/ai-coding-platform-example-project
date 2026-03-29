@@ -1,0 +1,20 @@
+# -----------------------------------------------------------------------------
+# Example project — overrides for platform testing
+# Passed via: -f projects/example/values.yaml
+# -----------------------------------------------------------------------------
+
+frontend:
+  image: "frontend"
+  replicas: 1
+
+backend:
+  image: "backend"
+  replicas: 1
+
+postgres:
+  enabled: true
+  storage: "10Gi"
+  database: "testdb"
+
+redis:
+  enabled: true
