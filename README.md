@@ -1,6 +1,6 @@
-# Example Project — Agent-First Dev Platform
+# Example Project — AI Coding Platform
 
-Example application repository that demonstrates how to structure a project for the [K8s Execution Environment](https://github.com/jmlopezdona/k8s-exec-env-test) platform.
+Example application repository that demonstrates how to structure a project for the [AI Coding Platform](https://github.com/jmlopezdona/ai-coding-platform-infra).
 
 ## Structure
 
@@ -34,7 +34,7 @@ When the platform creates an execution environment for a Delivery Cycle:
 
 ## Requirements for app pods
 
-See the platform's [implementation guide](https://github.com/jmlopezdona/k8s-exec-env-test#guide-implementing-application-pods) for the full list. Key points:
+See the platform's [implementation guide](https://github.com/jmlopezdona/ai-coding-platform-infra#guide-implementing-application-pods) for the full list. Key points:
 
 ### App pods with file sync must run as root
 
