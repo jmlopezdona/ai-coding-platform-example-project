@@ -17,8 +17,7 @@ apps/
 helm/
   stack-chart/         Helm chart defining how this app deploys
     templates/         K8s resource templates (deployments, services, etc.)
-    projects/          Environment-specific value overrides
-    values.yaml        Default configuration
+    values.yaml        Configuration (single source of truth — no overlays)
 
 skaffold.yaml          Build and sync configuration for Skaffold
 ```

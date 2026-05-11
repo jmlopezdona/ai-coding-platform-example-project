@@ -75,5 +75,3 @@ deploy:
         setValueTemplates:
           backend.image: "{{.IMAGE_FULLY_QUALIFIED_backend}}"
           frontend.image: "{{.IMAGE_FULLY_QUALIFIED_frontend}}"
-        valuesFiles:
-          - helm/stack-chart/projects/example/values.yaml
