@@ -61,12 +61,16 @@ build:
             dest: /etc/nginx/conf.d/default.conf
 
 deploy:
+  # Skaffold's defaults (statusCheck + helm wait, both with a 5 min timeout)
+  # uninstall the release on a slow first init and corrupt PVCs. See
+  # ONBOARDING.md §2.3.1. Trust the chart's readiness/liveness probes instead.
   statusCheck: false
   helm:
     releases:
       - name: stack-$DC_ID
         chartPath: helm/stack-chart
         namespace: $SKAFFOLD_NAMESPACE
+        wait: false
         setValues:
           global.branch: $DC_BRANCH
           global.envId: $DC_ID
